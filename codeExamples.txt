@@ -1,0 +1,352 @@
+Vežba I – Detekcija pokreta 
+Prvo je potrebno inicijalizovati biblioteke – za rad sa vremenom i GPIO pinovima. Pin koji povezujemo sa 
+diodom definišemo kao izlazni i postavljamo na niski naponski nivo, dok pin koji je povezan sa senzorom 
+definišemo kao ulazni. U Beskona?noj petlji potrebno je proveravati u kom stanju se nalazi senzor i 
+shodno rezultatu ispisivati poruke i paliti, odnosno gasiti diodu. Raspored pinova Raspberry pi 3 plo?e je 
+prikazan na slici: 
+import RPi.GPIO as GPIO #GPIO biblioteka 
+import time 
+LED1 = 4 
+Sensor = 3 
+GPIO.setmode(GPIO.BCM) 
+GPIO.setwarnings(False) 
+GPIO.setup(LED1, GPIO.OUT) 
+GPIO.setup(Sensor, GPIO.IN) #Read output from Vibration Sensor 
+GPIO.output(LED1, GPIO.LOW) 
+while True: 
+i=GPIO.input(Sensor) 
+if i==0: #When output from sensor is LOW 
+print ("Mirovanje") 
+GPIO.output(LED1, 0) #Turn OFF LED 
+time.sleep(0.1) 
+elif i==1: #When output from sensor is HIGH 
+print ("Detektovano pomeranje") 
+GPIO.output(LED1, 1) #Turn ON LED 
+time.sleep(0.1) 
+
+
+
+
+Vežba II – Slanje mail-a prilikom detekcije 
+pokreta 
+Svaki put kada se detektuje pokret preko senzora, otvara se komunikacija preko servera, vrši se 
+logovanje na odgovaraju?u mail adresu i šalje se poruka sa odgovaraju?im naslovom i sadržajem. 
+import RPi.GPIO as GPIO #GPIO biblioteka 
+import smtplib 
+import time 
+LED1 = 4 
+Sensor = 3 
+GPIO.setmode(GPIO.BCM) 
+GPIO.setwarnings(False) 
+GPIO.setup(LED1, GPIO.OUT) 
+GPIO.setup(Sensor, GPIO.IN) #Read output from Vibration Sensor 
+GPIO.output(LED1, GPIO.LOW) 
+while True: 
+i=GPIO.input(Sensor) 
+if i==0: #When output from sensor is LOW 
+print ("Mirovanje") 
+GPIO.output(LED1, 0) #Turn OFF LED 
+time.sleep(0.1) 
+elif i ==1 : #When output from sensor is HIGH 
+print ("Detektovano pomeranje") 
+GPIO.output(LED1, 1) #Turn ON LED 
+server = smtplib.SMTP('smtp.gmail.com', 587) 
+server.starttls() 
+server.login("singidunumrpi@gmail.com", "singirpi2016") 
+msg = 'Subject: {}\n\n{}'.format("RPi Sigurnosni sistem", "Detektovano 
+Pomeranje!!!") 
+server.sendmail("singidunumrpi@gmail.com", "singidunumrpi@gmail.com", msg) 
+server.quit() 
+time.sleep(5) 
+Vežba III – Pretraga mail-a po zadatom 
+kriterijumu 
+Kako bi pretražili samo nepro?itane mailo-ove u Inbox-u, vršimo pretragu koriste?i komandu 
+search(None, ‘UNSEEN’) koja nam vra?a da li postoje takvi mail-ovi i na kojim pozicijama. 
+import RPi.GPIO as GPIO #GPIO biblioteka 
+import imaplib 
+import time 
+LED1 = 4 
+GPIO.setmode(GPIO.BCM) 
+GPIO.setwarnings(False) 
+GPIO.setup(LED1, GPIO.OUT) 
+GPIO.output(LED1, GPIO.LOW) 
+mail = imaplib.IMAP4_SSL('imap.gmail.com') 
+mail.login("singidunumrpi@gmail.com", "singirpi2016") 
+while True: 
+mail.select("inbox") # connect to inbox. 
+retcode, response = mail.search(None, "UNSEEN") 
+unread_msg_nums = response[0].split() 
+broj_mejlova = len(unread_msg_nums) 
+if broj_mejlova==0: 
+GPIO.output(LED1, 0) #Turn OFF LED 
+time.sleep(0.1) 
+elif broj_mejlova > 0 : 
+GPIO.output(LED1, 1) #Turn ON LED 
+time.sleep(0.1) 
+time.sleep(10) 
+
+Vežba IV – Vizuelizacija podataka preuzetih 
+sa mail-a 
+Nadovezivanjem na Vežbu III, broj mail-ova prikazujemo na bar chart-u. Potrebno je instalirati matplotlib 
+u slu?aju da nedostaje, dodatna dokumentacija se nalazi na http://matplotlib.org/api/pyplot_api.html. 
+Za jednostavniji prikaz mogu?e je pozivanje samo komande plt.bar(x_niz,y_niz). 
+import RPi.GPIO as GPIO #GPIO biblioteka 
+import imaplib 
+import matplotlib.pyplot as plt 
+import time 
+LED1 = 4 
+GPIO.setmode(GPIO.BCM) 
+GPIO.setwarnings(False) 
+GPIO.setup(LED1, GPIO.OUT) 
+GPIO.output(LED1, GPIO.LOW) 
+mail = imaplib.IMAP4_SSL('imap.gmail.com') 
+mail.login("singidunumrpi@gmail.com", "singirpi2016") 
+mail.select("inbox") # connect to inbox. 
+retcode, response = mail.search(None, 'FROM', '"singidunumrpi@gmail.com"') 
+retcode1, response1 = mail.search(None, 'ALL' ) 
+broj_mejlova_detekcija = len(response[0].split()) 
+ukupan_broj_mejlova = len(response1[0].split()) 
+x = [1,2] 
+y = [broj_mejlova_detekcija, ukupan_broj_mejlova] 
+f = plt.figure() 
+ax = f.add_axes([0.1, 0.1, 0.8, 0.8]) 
+ax.bar(x, y, align='center') 
+ax.set_xticks(x) 
+ax.set_xticklabels(['Mejlovi za detekciju', 'Ukupan broj mejlova']) 
+f.show() 
+while True: 
+time.sleep(10) 
+
+Vežba V – Slanje vizuelnog izveštaja 
+detektovanih pokreta preko maila 
+Kako bi poslali attachment, potrebno je prvo otvoriti fajl sa njegovom apsolutnom putanjom i proslediti 
+je kao argument MIMEImage funkciji, i nakon toga dodajemo attachment osnovnoj Multipart poruci 
+koju prosledjujemo prilikom poziva sendmail. 
+import RPi.GPIO as GPIO #GPIO biblioteka 
+import smtplib 
+import datetime 
+import time 
+import matplotlib.pyplot as plt 
+from email.mime.image import MIMEImage 
+from email.mime.multipart import MIMEMultipart 
+LED1 = 4 
+Sensor = 3 
+GPIO.setmode(GPIO.BCM) 
+GPIO.setwarnings(False) 
+GPIO.setup(LED1, GPIO.OUT) 
+GPIO.setup(Sensor, GPIO.IN) #Read output from Vibration Sensor 
+GPIO.output(LED1, GPIO.LOW) 
+detekcija = [] 
+time_stamp = [] 
+count = 0 
+detekcija_tren = 0 
+rep_time=0 
+def slanje_izvestaja(): 
+msg = MIMEMultipart() 
+msg['Subject'] = 'RPi Sigurnosni sistem izvestaj' 
+fp = open('/home/pi/izvestaj.png','rb') 
+img = MIMEImage(fp.read()) 
+img.add_header('Content-Disposition', "attachment; filename= %s" % 
+datetime.datetime.now()) 
+msg.attach(img) 
+s = smtplib.SMTP('smtp.gmail.com', 587) 
+s.ehlo() 
+s.starttls() 
+s.ehlo() 
+s.login("singidunumrpi@gmail.com", "singirpi2016") 
+s.sendmail("singidunumrpi@gmail.com", "singidunumrpi@gmail.com", 
+msg.as_string()) 
+s.quit() 
+while True: 
+i=GPIO.input(Sensor) 
+if i==0: #When output from sensor is LOW 
+print ("Mirovanje") 
+GPIO.output(LED1, 0) #Turn OFF LED 
+time.sleep(0.1) 
+elif i ==1 : #When output from sensor is HIGH 
+print ("Detektovano pomeranje") 
+GPIO.output(LED1, 1) #Turn ON LED 
+detekcija_tren+=1 
+time.sleep(0.1) 
+count+=1 
+if count>=50: 
+detekcija.append(detekcija_tren) 
+time_stamp.append(datetime.datetime.now()) 
+rep_time+=count 
+count = 0 
+detekcija_tren=0 
+if rep_time >= 3000: 
+print("stampanje izvestaja") 
+f = plt.figure() 
+plt.xticks(rotation=80) 
+plt.plot(time_stamp,detekcija) 
+plt.tight_layout() 
+#f.show() 
+f.savefig('/home/pi/izvestaj.png') 
+detekcija = [] 
+time_stamp = [] 
+slanje_izvestaja() 
+rep_time=0 
+
+
+Vežba VI – LED kontrola putem mail-a 
+Kako bi kontrolisali diodu, potrebno je da filtriramo poruke koje nisu pro?itane i ?iji je subject „Upali 
+Diodu“ ili „Ugasi Diodu“. Kako bi zadali više kriterijuma, potrebno je definisati sve unutar jednog 
+argumenta kao mail.search(None, '(SUBJECT "Upali Diodu" UNSEEN)') gde smo definisali 
+da prebrojimo sve mail-ove sa predmetom mail-a „Upali Diodu“ a pritom da nije pro?itan. Kako bi 
+markirali mail da je pro?itan, koristimo mail.store(num,'+FLAGS','\\Seen') koja za parametre 
+uzima poziciju mail-a i string sa kriterijumom za izmenu stanja, na isti nalin može i da se briše neki email 
+izmenom '\\Delete' 
+import RPi.GPIO as GPIO #GPIO biblioteka 
+import imaplib 
+import time 
+LED1 = 4 
+GPIO.setmode(GPIO.BCM) 
+GPIO.setwarnings(False) 
+GPIO.setup(LED1, GPIO.OUT) 
+GPIO.output(LED1, GPIO.LOW) 
+mail = imaplib.IMAP4_SSL('imap.gmail.com') 
+mail.login("singidunumrpi@gmail.com", "singirpi2016") 
+while True: 
+mail.select("inbox") # connect to inbox. 
+retcode1, response1 = mail.search(None, '(SUBJECT "Upali Diodu" UNSEEN)') 
+retcode2, response2 = mail.search(None, '(SUBJECT "Ugasi Diodu" UNSEEN)') 
+if (len(response1[0].split()) > 0 ) : 
+GPIO.output(LED1, GPIO.HIGH) 
+for num in response1[0].split() : 
+mail.store(num,'+FLAGS','\\Seen') 
+print("Dioda Upaljena") 
+elif (len(response2[0].split()) > 0 ) : 
+GPIO.output(LED1, GPIO.LOW) 
+for num in response2[0].split() : 
+mail.store(num,'+FLAGS','\\Seen') 
+print("Dioda Ugasena") 
+time.sleep(10) 
+
+Vežba VII – Vizuelizacija podataka – 
+ThingSpeak servis 
+Nakon o?itavanja temperature, otvaramo konekciju ka ThingSpeak servisu i šaljemo zahtev sa našim API 
+key, željenim poljem za upis sa trenutnom temperaturom. Proveravamo odgovor od servera, kako bi 
+utvrdili da je temperatura uspešno memorisana. 
+import http.client, urllib 
+import time 
+sleep = 60 # Delay 
+key = 'V36P5T0XI3DNBSMZ' # Jedinstveni Write API key 
+def thermometer(): 
+#CPU temperatura 
+temp = int(open('/sys/class/thermal/thermal_zone0/temp').read()) / 1e3 # 
+params = urllib.parse.urlencode({'field1': temp, 'key':key }) 
+headers = {"Content-typZZe": "application/x-www-form-urlencoded","Accept": 
+"text/plain"} 
+conn = http.client.HTTPConnection("api.thingspeak.com:80") 
+try: 
+conn.request("POST", "/update", params, headers) 
+response = conn.getresponse() 
+print (temp) 
+print (response.status, response.reason) 
+data = response.read() 
+conn.close() 
+except: 
+print ("connection failed") 
+while True: 
+thermometer() 
+time.sleep(sleep)
+
+ 
+Vežba VIII – Vizuelizacija detektovanih 
+pomeranja 
+
+import http.client, urllib 
+import time 
+import RPi.GPIO as GPIO #GPIO biblioteka 
+sleep = 60 # how many seconds to sleep between posts to the channel 
+key = 'V36P5T0XI3DNBSMZ' # Thingspeak channel to update 
+LED1 = 4 
+Sensor = 3 
+GPIO.setmode(GPIO.BCM) 
+GPIO.setwarnings(False) 
+GPIO.setup(LED1, GPIO.OUT) 
+GPIO.setup(Sensor, GPIO.IN) #Read output from Vibration Sensor 
+GPIO.output(LED1, GPIO.LOW) 
+def vibration_detect(): 
+params = urllib.parse.urlencode({'field2': 1, 'key':key }) 
+headers = {"Content-typZZe": "application/x-www-form-urlencoded","Accept": 
+"text/plain"} 
+conn = http.client.HTTPConnection("api.thingspeak.com:80") 
+try: 
+conn.request("POST", "/update", params, headers) 
+response = conn.getresponse() 
+print (temp) 
+print (response.status, response.reason) 
+data = response.read() 
+conn.close() 
+except: 
+print ("connection failed") 
+#sleep for desired amount of time 
+while True: 
+i=GPIO.input(Sensor) 
+if i==0: #When output from sensor is LOW 
+print ("Mirovanje") 
+GPIO.output(LED1, 0) #Turn OFF LED 
+time.sleep(0.1) 
+elif i==1: #When output from sensor is HIGH 
+print ("Detektovano pomeranje") 
+GPIO.output(LED1, 1) #Turn ON LED 
+vibration_detect() 
+time.sleep(3) 
+
+Vežba IX – Komunikacija Arduino i RPi 
+Arduino strana: 
+void setup(){ 
+Serial.begin(9600); 
+} 
+void loop(){ 
+Serial.println("Hello Pi"); 
+delay(2000); 
+} 
+Rpi python kod: 
+import serial 
+ser = serial.Serial('/dev/ttyUSB0', 9600) 
+while 1 : 
+value=ser.readline() 
+print(value.decode("utf-8")); 
+
+Vežba X – Slanje temperature sa Arduina na 
+Rpi i vizuelizacija podataka preko 
+Thingspeak servisa 
+
+Arduino strana: 
+#define temp_senzor A0 
+volatile float Temperatura = 0; 
+void setup(){ 
+Serial.begin(9600); 
+} 
+void loop(){ 
+Temperatura = (5.0 * analogRead(temp_senzor) * 100.0) / 1024; 
+Serial.println(Temperatura); 
+delay(60000); 
+} 
+Rpi python kod: 
+import http.client, urllib 
+import serial 
+key = 'V36P5T0XI3DNBSMZ' # Thingspeak channel to update 
+ser = serial.Serial('/dev/ttyUSB1', 9600) 
+#Report Raspberry Pi internal temperature to Thingspeak Channel 
+def thermometer(t): 
+params = urllib.parse.urlencode({'field3': t, 'key':key }) 
+headers = {"Content-typZZe": "application/x-www-form-urlencoded","Accept": 
+"text/plain"} 
+conn = http.client.HTTPConnection("api.thingspeak.com:80") 
+try: 
+conn.request("POST", "/update", params, headers) 
+response = conn.getresponse() 
+print (t) 
+print (response.status, response.reason) 
+data = response.read() 
+conn.close() 
+except: 
+print ("connection failed") 
+while True: 
+temp=ser.readline() # Blokira kod dok ne pristigne \n 
+print(temp.decode("utf-8")) 
+thermometer(temp.decode("utf-8"))
