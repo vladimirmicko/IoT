@@ -350,3 +350,7 @@ while True:
 temp=ser.readline() # Blokira kod dok ne pristigne \n 
 print(temp.decode("utf-8")) 
 thermometer(temp.decode("utf-8"))
+
+
+https://maker.ifttt.com/trigger/ObjectTooClose/with/key/gQE9C_coVl5xSzbcNVA2zloldnPSo-6OIHp8CPMlurA
+
