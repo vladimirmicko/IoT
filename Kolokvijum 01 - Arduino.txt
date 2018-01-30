@@ -1,0 +1,135 @@
+#include <dht.h>
+
+#define DHT11_PIN 7
+#define RELAY_SIG 8
+#define LED_RED 4
+#define TX 1
+#define RX 0
+
+String command = "";
+String lastCommand = "";
+dht DHT;
+boolean ledModeManual = true;
+
+
+void setup() {
+  Serial.begin(9600);
+  pinMode(LED_BUILTIN, OUTPUT);
+  pinMode(LED_RED, OUTPUT);
+  pinMode(RELAY_SIG, OUTPUT);
+  pinMode(TX, OUTPUT);
+  pinMode(RX, INPUT);
+  
+}
+
+
+
+void loop() {
+  
+  if(Serial.available()>0){
+    while(Serial.available()) { 
+      command += (char)Serial.read();
+    }
+  }
+
+  if(command == "temp"){
+    lastCommand = command;
+    dhtRead();
+    Serial.print("Temperatura = ");
+    Serial.println(DHT.temperature);
+  }
+
+  if(command == "vlaz"){
+    lastCommand = command;
+    dhtRead();
+    Serial.print("Vlaznost = ");
+    Serial.println(DHT.humidity);
+  }
+
+  if(command == "auto"){
+    lastCommand = command;
+    ledModeManual=false;
+    digitalWrite(RELAY_SIG, HIGH);
+    Serial.println("Presli ste u AUTO mod.");
+  }
+
+  if(command == "manual"){
+    lastCommand = command;
+    ledModeManual=true;
+    digitalWrite(RELAY_SIG, LOW);
+    Serial.println("Presli ste u MANUAL mod.");
+  }
+
+  if(command == "upali"){
+    lastCommand = command;
+    if (!ledModeManual){
+      digitalWrite(LED_RED, HIGH);
+      Serial.println("Upalili ste LED.");
+    }
+    else{
+      Serial.println("Sada ste u MANUAL modu. Da li zelite da predjete u AUTO mode?");
+    }
+  }
+
+  if(command == "ugasi"){
+    lastCommand = command;
+    if (!ledModeManual){
+      digitalWrite(LED_RED, LOW);
+      Serial.println("Ugasili ste LED.");
+    }
+    else{
+      Serial.println("Sada ste u MANUAL modu. Da li zelite da predjete u AUTO mode?");
+    }
+  }
+
+  if(command == "da"){
+    if(lastCommand=="upali"){  
+      ledModeManual=false;
+      digitalWrite(RELAY_SIG, HIGH);
+      digitalWrite(LED_RED, HIGH);
+      Serial.println("Presli ste u AUTO mode i upalili LED.");
+    }
+    else if(lastCommand=="ugasi"){
+      ledModeManual=false;
+      digitalWrite(RELAY_SIG, HIGH);
+      digitalWrite(LED_RED, LOW);
+      Serial.println("Presli ste u AUTO mode i ugasili LED.");
+    }
+    else {
+      Serial.println("Komandi \"da\" mora da prethodi pitanje!");
+    }
+  }
+
+  if(command == "ne"){
+    if(lastCommand=="upali" || lastCommand=="ugasi"){  
+      Serial.println("Odustali ste od prelaska u AUTO mode.");
+    }
+    else {
+      Serial.println("Komandi \"ne\" mora da prethodi pitanje!");
+    }
+  }
+  
+  
+  command = "";
+  delay(100);
+}
+
+void dhtRead(){
+  int chk = DHT.read11(DHT11_PIN);
+  switch (chk)
+  {
+    case DHTLIB_OK:  
+//      Serial.print("OK,\t"); 
+      break;
+    case DHTLIB_ERROR_CHECKSUM: 
+      Serial.print("Checksum error,\t"); 
+      break;
+    case DHTLIB_ERROR_TIMEOUT: 
+      Serial.print("Time out error,\t"); 
+      break;
+    default: 
+      Serial.print("Unknown error,\t"); 
+      break;
+  }
+}
+

@@ -1,0 +1,61 @@
+#include <stdio.h>
+#define temp_sensor A1
+#define light_sensor A2
+#define trig 7
+#define echo 8 
+
+char   buffer[20]; 
+int temp = 0; 
+int light = 0;
+int duration = 0;
+int distance = 0;
+
+
+
+void setup(){
+  pinMode(trig, OUTPUT);
+  pinMode(echo, INPUT);
+  pinMode(A1, INPUT);
+  pinMode(A2, INPUT);
+  
+  digitalWrite(trig, LOW);
+  
+  Serial.begin(9600); 
+} 
+  
+void loop(){ 
+
+//Merenje rastojanja
+  digitalWrite(trig, LOW);
+  delayMicroseconds(2);
+  digitalWrite(trig, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(trig, LOW);
+
+  duration=pulseIn(echo, HIGH);
+  distance=duration/58;  
+
+//Merenje temperature
+  temp = analogRead(temp_sensor);
+  delay(10);
+  temp = analogRead(temp_sensor);
+  delay(10);
+  
+//Merenje svetlosti
+  light = analogRead(light_sensor);
+  delay(10);
+  light = analogRead(light_sensor);
+  delay(10);
+
+//Prenos podataka na Raspberry Pi uredja putem serijske veze
+  Serial.print(temp);
+  Serial.print(" ");
+  Serial.print(light);
+  Serial.print(" ");
+  Serial.print(distance);
+  Serial.println(" ");
+  
+  delay(450); 
+}
+
+
